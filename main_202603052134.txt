@@ -1,0 +1,311 @@
+---FILE: README.md
+# Simple Task Manager API
+
+**Description:**
+
+This project provides a simple RESTful API for managing tasks. It allows users to create, read, update, and delete tasks. The frontend provides a basic interface for interacting with the API.
+
+**Why it's useful:**
+
+A task manager is a fundamental tool for productivity. This API provides a foundation for building more complex task management applications or integrating task management functionality into existing systems. It's a good example of a simple, self-contained web service.
+
+**Installation & Setup:**
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/simple-task-manager.git
+    cd simple-task-manager
+    ```
+
+2.  **Set up the backend:**
+    *   Create a `.env` file in the root directory and populate it with the following environment variables:
+        ```
+        DATABASE_URL=sqlite:///tasks.db
+        ```
+    *   Run the backend server:
+        ```bash
+        python app.py
+        ```
+        (or `node server.js` or `go run main.go` depending on the backend language)
+
+3.  **Set up the frontend:**
+    *   Open `index.html` in your web browser.
+
+**API Endpoints:**
+
+*   `GET /tasks`: Retrieves all tasks.
+*   `GET /tasks/{id}`: Retrieves a specific task by ID.
+*   `POST /tasks`: Creates a new task.  Request body should be a JSON object with `title` and `description` fields.
+*   `PUT /tasks/{id}`: Updates an existing task by ID. Request body should be a JSON object with the fields to update.
+*   `DELETE /tasks/{id}`: Deletes a task by ID.
+
+**Example Usage:**
+
+*   **Create a task:**
+    `POST /tasks`
+    Request Body:
+    ```json
+    {
+      "title": "Grocery Shopping",
+      "description": "Buy milk, eggs, and bread"
+    }
+    ```
+    Response:
+    ```json
+    {
+      "id": 1,
+      "title": "Grocery Shopping",
+      "description": "Buy milk, eggs, and bread",
+      "completed": false
+    }
+    ```
+
+*   **Get all tasks:**
+    `GET /tasks`
+    Response:
+    ```json
+    [
+      {
+        "id": 1,
+        "title": "Grocery Shopping",
+        "description": "Buy milk, eggs, and bread",
+        "completed": false
+      }
+    ]
+    ```
+
+**License:**
+
+MIT License
+
+---FILE: .gitignore
+*.pyc
+__pycache__/
+.env
+.env.example
+*.log
+node_modules/
+--FILE: app.py
+from flask import Flask, jsonify, request
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
+db = SQLAlchemy(app)
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String(255), nullable=False)
+    completed = db.Column(db.Boolean, default=False)
+
+    def __repr__(self):
+        return f'<Task {self.title}>'
+
+with app.app_context():
+    db.create_all()
+
+@app.route('/tasks', methods=['GET'])
+def get_tasks():
+    tasks = Task.query.all()
+    task_list = [task.to_dict() for task in tasks]
+    return jsonify(task_list)
+
+@app.route('/tasks/<int:id>', methods=['GET'])
+def get_task(id):
+    task = Task.query.get_or_404(id)
+    return jsonify(task.to_dict())
+
+@app.route('/tasks', methods=['POST'])
+def create_task():
+    data = request.get_json()
+    title = data.get('title')
+    description = data.get('description')
+
+    if not title:
+        return jsonify({'error': 'Title is required'}), 400
+
+    new_task = Task(title=title, description=description)
+    db.session.add(new_task)
+    db.session.commit()
+
+    return jsonify(new_task.to_dict()), 201
+
+@app.route('/tasks/<int:id>', methods=['PUT'])
+def update_task(id):
+    task = Task.query.get_or_404(id)
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    if 'title' in data:
+        task.title = data['title']
+    if 'description' in data:
+        task.description = data['description']
+    if 'completed' in data:
+        task.completed = data['completed']
+
+    db.session.commit()
+
+    return jsonify(task.to_dict())
+
+@app.route('/tasks/<int:id>', methods=['DELETE'])
+def delete_task(id):
+    task = Task.query.get_or_404(id)
+    db.session.delete(task)
+    db.session.commit()
+
+    return jsonify({'message': 'Task deleted'})
+
+if __name__ == '__main__':
+    app.run(debug=True)
+---FILE: index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Task Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Simple Task Manager</h1>
+
+    <button id="newTaskButton">Add New Task</button>
+
+    <div id="taskList">
+        <!-- Tasks will be displayed here -->
+    </div>
+
+    <script src="scripts.js"></script>
+</body>
+</html>
+---FILE: scripts.js
+document.addEventListener('DOMContentLoaded', function() {
+    const newTaskButton = document.getElementById('newTaskButton');
+    const taskList = document.getElementById('taskList');
+
+    // Fetch tasks from the API
+    fetch('/tasks')
+        .then(response => response.json())
+        .then(tasks => {
+            taskList.innerHTML = ''; // Clear existing tasks
+            tasks.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.innerHTML = `
+                    <input type="checkbox" id="${task.id}" ${task.completed ? 'checked' : ''}>
+                    <label>${task.title}</label>
+                    <p>${task.description}</p>
+                `;
+                taskList.appendChild(taskElement);
+            });
+        })
+        .catch(error => console.error('Error fetching tasks:', error));
+
+    // Add new task
+    newTaskButton.addEventListener('click', function() {
+        // Implement adding new task functionality here
+        // This is a placeholder
+        alert('Add new task functionality not implemented yet.');
+    });
+});
+---FILE: styles.css
+body {
+    font-family: sans-serif;
+    margin: 20px;
+}
+
+h1 {
+    text-align: center;
+}
+
+#taskList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+}
+
+.task {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin: 10px;
+    width: 300px;
+}
+
+input[type="checkbox"] {
+    margin-right: 10px;
+}
+---FILE: requirements.txt
+Flask
+Flask-SQLAlchemy
+sqlite
+---FILE: .env.example
+DATABASE_URL=sqlite:///tasks.db
+---FILE: .env
+DATABASE_URL=sqlite:///tasks.db
+---FILE: package.json
+{
+  "name": "simple-task-manager",
+  "version": "1.0.0",
+  "description": "Simple Task Manager API",
+  "main": "app.py",
+  "scripts": {
+    "run": "python app.py"
+  },
+  "dependencies": {
+    "flask": "^2.3.2",
+    "flask-sqlalchemy": "^3.0.0"
+  }
+}
+---FILE: config.py
+# config.py
+# This file is not strictly required, but it's good practice to
+# have a configuration file for environment variables.
+
+# This is a placeholder.  In a real application, you would
+# load environment variables from a .env file or other source.
+# For this example, we'll just define a constant.
+
+DATABASE_URL = "sqlite:///tasks.db"
+---FILE: go.mod
+module simple-task-manager
+
+go 1.20
+
+require (
+	github.com/jmoiron/sqlx v1.3.0
+	github.com/lib/pq v1.10.9
+	github.com/mattn/go-sqlite3 v1.14.17
+)
+
+require golang.org/x/net v0.0.0-20230528190555-3f20919a8000
+
+//go:block
+
+---FILE: Cargo.toml
+[package]
+name = "simple-task-manager"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite"] }
+tokio = { version = "1", features = ["full"] }
+dotenv = "0.15"
+---FILE: go.mod
+module simple-task-manager
+
+go 1.20
+
+require (
+	github.com/jmoiron/sqlx v1.3.0
+	github.com/lib/pq v1.10.9
+	github.com/mattn/go-sqlite3 v1.14.17
+)
+
+require golang.org/x/net v0.0.0-20230528190555-3f20919a8000
+
+//go:block
+
+---
